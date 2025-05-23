@@ -3,7 +3,6 @@ kind: Kustomization
 
 resources:
 - nginx-deployment.yaml
-- monitoring-app.yaml
 
 commonLabels:
   project: csec5615
