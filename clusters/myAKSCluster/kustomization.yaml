@@ -1,0 +1,13 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1beta2
+kind: Kustomization
+metadata:
+  name: nginx-config
+  namespace: flux-system
+spec:
+  interval: 1m
+  path: ./clusters/myK8SCluster
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  validation: client
