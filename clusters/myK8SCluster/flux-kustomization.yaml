@@ -12,3 +12,4 @@ spec:
     name: flux-system
   targetNamespace: default
   validation: client
+  force: true
