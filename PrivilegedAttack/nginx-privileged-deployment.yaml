@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-safe
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-safe
+  template:
+    metadata:
+      labels:
+        app: nginx-safe
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        securityContext:
+          privileged: true
+          runAsUser: 0
+          allowPrivilegeEscalation: true
+          runAsNonRoot: false
