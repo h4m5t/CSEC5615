@@ -4,7 +4,7 @@ metadata:
   name: nginx-config
   namespace: flux-system
 spec:
-  interval: 8m
+  interval: 3m
   path: ./clusters/myK8SCluster
   prune: true
   sourceRef:
