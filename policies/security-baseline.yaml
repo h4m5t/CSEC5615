@@ -1,0 +1,215 @@
+# security-baseline.yaml
+# Kubernetes Security Baseline Configuration for GitOps Self-Healing System
+
+---
+# Network Policy - Restrict pod-to-pod communication
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: baseline-network-policy
+  namespace: default
+  labels:
+    security-baseline: "true"
+    managed-by: "gitops"
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: system
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+  egress:
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
+
+---
+# Resource Quota - Limit resource consumption
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: baseline-resource-quota
+  namespace: default
+  labels:
+    security-baseline: "true"
+    managed-by: "gitops"
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    persistentvolumeclaims: "10"
+    pods: "20"
+    services: "10"
+
+---
+# Limit Range - Enforce container resource limits
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: baseline-limit-range
+  namespace: default
+  labels:
+    security-baseline: "true"
+    managed-by: "gitops"
+spec:
+  limits:
+  - type: Container
+    default:
+      cpu: 200m
+      memory: 256Mi
+    defaultRequest:
+      cpu: 100m
+      memory: 128Mi
+    max:
+      cpu: 1000m
+      memory: 1Gi
+    min:
+      cpu: 50m
+      memory: 64Mi
+
+---
+# Pod Security Policy Template
+apiVersion: v1
+kind: Pod
+metadata:
+  name: security-baseline-template
+  namespace: default
+  labels:
+    security-baseline: "true"
+    managed-by: "gitops"
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+  - name: secure-container
+    image: nginx:1.21-alpine
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+      runAsUser: 1000
+      capabilities:
+        drop:
+        - ALL
+        add:
+        - NET_BIND_SERVICE
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    volumeMounts:
+    - name: tmp
+      mountPath: /tmp
+    - name: cache
+      mountPath: /var/cache/nginx
+  volumes:
+  - name: tmp
+    emptyDir: {}
+  - name: cache
+    emptyDir: {}
+
+---
+# RBAC - Service Account
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: baseline-service-account
+  namespace: default
+  labels:
+    security-baseline: "true"
+    managed-by: "gitops"
+automountServiceAccountToken: false
+
+---
+# RBAC - Role for baseline permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: baseline-security-role
+  namespace: default
+  labels:
+    security-baseline: "true"
+    managed-by: "gitops"
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list", "watch"]
+
+---
+# RBAC - RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: baseline-security-binding
+  namespace: default
+  labels:
+    security-baseline: "true"
+    managed-by: "gitops"
+subjects:
+- kind: ServiceAccount
+  name: baseline-service-account
+  namespace: default
+roleRef:
+  kind: Role
+  name: baseline-security-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ConfigMap for security configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: security-baseline-config
+  namespace: default
+  labels:
+    security-baseline: "true"
+    managed-by: "gitops"
+data:
+  security-level: "baseline"
+  drift-detection: "enabled"
+  self-healing: "enabled"
+  monitoring: "azure-monitor"
+  policy-enforcement: "strict"
+  allowed-registries: |
+    mcr.microsoft.com
+    docker.io/library
+    gcr.io/distroless
+  blocked-capabilities: |
+    SYS_ADMIN
+    NET_ADMIN
+    SYS_TIME
+    SYS_MODULE
+  max-privilege-escalation: "false"
+  require-non-root: "true"
+  readonly-root-filesystem: "true"
